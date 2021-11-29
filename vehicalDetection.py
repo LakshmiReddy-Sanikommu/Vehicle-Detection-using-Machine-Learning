@@ -13,7 +13,7 @@ detect = []
 offset = 6 # allow error between pixel
 counter = 0
 
-cap = cv2.VideoCapture(r"C:\Users\sanik\Downloads\video.mp4")
+cap = cv2.VideoCapture('Data\video.mp4')
 
 min_width_react = 80
 min_height_react = 80
