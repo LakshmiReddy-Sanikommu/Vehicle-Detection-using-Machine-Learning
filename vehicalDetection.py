@@ -1,51 +1,67 @@
 import cv2
 import numpy as np
 
-# VideoCapture is used to capture video input
-# paramenter : filename: for using locally stored files
-#              pass 0 for capturing input from camera
 
+def center_handle(x, y, w, h):
+    x1 = int(w / 2)
+    y1 = int(h / 2)
+    cx = x + x1
+    cy = y + y1
+    return cx,cy
 
-cap = cv2.VideoCapture('data/video.mp4')
+detect = []
+offset = 6 # allow error between pixel
+counter = 0
 
-vehicle_count = 0
+cap = cv2.VideoCapture(r"C:\Users\sanik\Downloads\video.mp4")
 
-veh_detection = cv2.bgsegm.createBackgroundSubtractorMOG()
+min_width_react = 80
+min_height_react = 80
+
+count_line_position = 550
+
+bagsub = cv2.bgsegm.createBackgroundSubtractorMOG()
 
 while True:
-    frame_available, frame = cap.read()
+    ret , frame1 = cap.read()
+    
+    grey = cv2.cvtColor(frame1,cv2.COLOR_BGR2GRAY)
+    blur = cv2.GaussianBlur(grey,(3,3),5)
+    # apply for each frame
+    img_sub = bagsub.apply(blur)
+    dilat = cv2.dilate(img_sub,np.ones((5,5)))
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    dilatada = cv2.morphologyEx (dilat, cv2. MORPH_CLOSE , kernel)
+    dilatada = cv2.morphologyEx (dilatada, cv2. MORPH_CLOSE , kernel)
+    counterSahpe,h = cv2.findContours(dilatada,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+    
+    cv2.line(frame1, (25,count_line_position), (1200,count_line_position), (255,127,0), 3)
 
-    if frame_available == True:
+ 
+    for(i,c) in enumerate(counterSahpe):
+        (x,y,w,h) = cv2.boundingRect(c)
+        validate_counter = (w >= min_width_react) and (h >= min_height_react)
+        if not validate_counter:
+            continue
 
-        grey_image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        blur = cv2.GaussianBlur(grey_image, (3,3),5)
+        cv2.rectangle(frame1,(x,y),(x+w,y+h),(0,255,0),2)        
+        center = center_handle(x, y, w, h)
+        detect.append(center)
+        cv2.circle(frame1, center, 4, (0, 0,255), -1)
 
-        img_sub = veh_detection.apply(blur)
-        dilat = cv2.dilate(img_sub, np.ones((5,5)))
-        kernal = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5))
-        dilatada = cv2.morphologyEx(dilat, cv2.MORPH_CLOSE, kernal)
-        dilatada = cv2.morphologyEx(dilatada, cv2.MORPH_CLOSE, kernal)
-        counter,h = cv2.findContours(dilatada, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        for (x,y) in detect:
+            if y<(count_line_position+offset) and y>(count_line_position-offset):
+                counter+=1
+                cv2.line(frame1, (25,count_line_position), (1200,count_line_position), (0,127,255), 3)  
+                detect.remove((x,y))
+                print("Vehical detected : "+str(counter))        
+       
+    cv2.putText(frame1, "VEHICLE COUNTER : "+str(counter), (450, 70), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255),5)
+    cv2.imshow("Video Original" , frame1)
+    #cv2.imshow("Detectar",dilatada)
 
-        for (i,c) in enumerate(counter):
-            # print(c)
-            (x,y,w,h) = cv2.boundingRect(c)
-            if w > 60 and h > 50:
-                cv2.rectangle(frame, (x,y), (x+w, y+h), (0,255,0),2)
-                vehicle_count += 1
-            else:
-                continue
-        cv2.putText(frame, "count : " + str(vehicle_count),(450,70),cv2.FONT_HERSHEY_SIMPLEX,2,(0,0,255),5)
-        cv2.imshow('video', frame)
-        key = cv2.waitKey(1)
-        # print(key)
-        if key == 13:
-            print("Termination initiated")
-            break
-    else:
-        print("Video ended")
+    if cv2.waitKey(1) == 13:
         break
-
-
+    
 cv2.destroyAllWindows()
 cap.release()
